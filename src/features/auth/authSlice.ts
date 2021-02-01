@@ -50,14 +50,16 @@ export const fetchAsyncUpdateProf = createAsyncThunk(
         // formデータのオブジェクト作成
         const uploadData = new FormData();
         uploadData.append("nickName", profile.nickName);
+        console.log(uploadData)
         // イメージがあった場合に処理をする
         profile.img && uploadData.append("img", profile.img, profile.img.name);
-        const res = await axios.put(`${apiURL}api/profile/${profile.id}`, uploadData, {
+        const res = await axios.put(`${apiURL}api/profile/${profile.id}/`, uploadData, {
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `JWT ${localStorage.localJWT}`
             },
         });
+        console.log(localStorage.localJWT)
         return res.data;
     }
 );
@@ -91,6 +93,7 @@ export const fetchAsyncGetProfs = createAsyncThunk(
 export const authSlice = createSlice({
   name: 'auth',
   initialState: {
+      // modalの制御
       openSignIn: true,
       openSignUp: false,
       openProfile: false,
@@ -131,7 +134,10 @@ export const authSlice = createSlice({
           state.openSignUp = true;
       },
       resetOpenSignUp(state) {
-          state.openProfile = true;
+          state.openSignUp = false;
+      },
+      setOpenProfile(state) {
+        state.openProfile = true;
       },
       resetOpenProfile(state) {
           state.openProfile = false;
@@ -140,8 +146,38 @@ export const authSlice = createSlice({
           state.myprofile.nickName = action.payload;
       }
   },
+
+  // extraReducer追加
+  extraReducers: (builder) => {
+    // fetchAsyncLoginメソッドがfulfilledだった場合の処理
+    builder.addCase(fetchAsyncLogin.fulfilled, (state, action) => {
+        localStorage.setItem("localJWT", action.payload.access);
+    });
+
+    builder.addCase(fetchAsyncCreateProf.fulfilled, (state, action) => {
+        state.myprofile = action.payload;
+    });
+
+    builder.addCase(fetchAsyncGetMyProf.fulfilled, (state, action) => {
+        state.myprofile = action.payload;
+    });
+
+    builder.addCase(fetchAsyncGetProfs.fulfilled, (state, action) => {
+        state.profiles = action.payload;
+    });
+
+    builder.addCase(fetchAsyncUpdateProf.fulfilled, (state, action) => {
+        state.myprofile = action.payload;
+        state.profiles = state.profiles.map((prof) =>
+            prof.id === action.payload.id ? action.payload: prof
+        );
+    });
+  }   
 });
 
+
+
+// reducerに関するものを登録
 export const { 
     fetchCredStart, 
     fetchCredEnd, 
@@ -149,11 +185,18 @@ export const {
     resetOpenSignIn, 
     setOpenSignUp, 
     resetOpenSignUp, 
+    setOpenProfile,
     resetOpenProfile, 
     editNickname 
 } = authSlice.actions;
 
 
-export const selectCount = (state: RootState) => state.counter.value;
+// 各スライスのstateにアクセスするための関数
+export const selectIsLoadingAuth = (state: RootState) => state.auth.isLoadingAuth;
+export const selectOpenSignUp = (state: RootState) => state.auth.openSignUp;
+export const selectOpenSignIn = (state: RootState) => state.auth.openSignIn;
+export const selectOpenProfile = (state: RootState) => state.auth.openProfile;
+export const selectProfile = (state: RootState) => state.auth.myprofile;
+export const selectProfiles = (state: RootState) => state.auth.profiles;
 
 export default authSlice.reducer;
